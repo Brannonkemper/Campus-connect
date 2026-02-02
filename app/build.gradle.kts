@@ -5,22 +5,9 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-import java.util.Properties
-
 val geminiApiKey = run {
-    val fromGradle = providers.gradleProperty("GEMINI_API_KEY").orNull
-    if (!fromGradle.isNullOrBlank()) {
-        fromGradle
-    } else {
-        val propsFile = rootProject.file("local.properties")
-        if (propsFile.exists()) {
-            val props = Properties()
-            propsFile.inputStream().use { props.load(it) }
-            props.getProperty("GEMINI_API_KEY").orEmpty()
-        } else {
-            ""
-        }
-    }
+    val fromEnv = providers.environmentVariable("GEMINI_API_KEY").orNull
+    fromEnv.orEmpty()
 }
 
 android {

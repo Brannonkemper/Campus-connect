@@ -138,7 +138,7 @@ fun StudentAiChatScreen(
                         Log.d("AiChat", "GEMINI_API_KEY length: ${apiKey.length}")
                         if (apiKey.isBlank()) {
                             Log.e("AiChat", "GEMINI_API_KEY is blank in BuildConfig")
-                            aiChatVm.setError("Missing GEMINI_API_KEY in local.properties.")
+                            aiChatVm.setError("Missing GEMINI_API_KEY. Set it as an environment variable.")
                             return@TextButton
                         }
                         Log.d("AiChat", "GEMINI_API_KEY loaded, sending request.")
@@ -304,7 +304,6 @@ private fun truncate(text: String, max: Int = 180): String {
     if (clean.length <= max) return clean
     return clean.take(max - 3) + "..."
 }
-
 
 
 

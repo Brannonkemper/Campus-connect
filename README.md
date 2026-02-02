@@ -81,25 +81,18 @@ Open the project in Android Studio.
    - Cloud Firestore
    - Cloud Storage
 
-### 3) Gemini API key
+### 3) Gemini API key (keep it out of GitHub)
 
-This app reads `GEMINI_API_KEY` from either:
-- `gradle.properties` (as Gradle property), or
-- `local.properties`
+This app reads `GEMINI_API_KEY` from an environment variable only.
 
-Use one of these options:
+Set it like this:
 
-```properties
-# local.properties
-GEMINI_API_KEY=your_key_here
+```powershell
+# Windows (persists for future terminals)
+setx GEMINI_API_KEY "your_key_here"
 ```
 
-or
-
-```properties
-# gradle.properties
-GEMINI_API_KEY=your_key_here
-```
+Do not commit secrets to project files tracked by Git.
 
 ### 4) Firestore data model
 
@@ -146,8 +139,8 @@ Admin role assignment is currently controlled by a secret admin code in `AuthVie
 
 ## Troubleshooting
 
-- **`Missing GEMINI_API_KEY in local.properties.`**
-  - Add `GEMINI_API_KEY` to `local.properties` or `gradle.properties`, then rebuild.
+- **`Missing GEMINI_API_KEY`**
+  - Set `GEMINI_API_KEY` as an environment variable, then rebuild.
 - **Firebase auth/login issues**
   - Confirm Email/Password sign-in is enabled in Firebase Auth.
 - **No Firestore data appears**
