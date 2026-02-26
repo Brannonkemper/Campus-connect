@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,16 @@ data class ClubAnnouncementSummary(
     val title: String = "",
     val message: String = "",
     val createdAt: Timestamp? = null
+)
+
+data class ClubAnalytics(
+    val clubId: String = "",
+    val clubName: String = "",
+    val memberCount: Int = 0,
+    val announcementCount: Int = 0,
+    val recentJoins7Days: Int = 0,
+    val lastAnnouncementAt: Timestamp? = null,
+    val lastMemberJoinAt: Timestamp? = null
 )
 
 class ClubViewModel : ViewModel() {
@@ -47,12 +58,24 @@ class ClubViewModel : ViewModel() {
     private val _recentClubAnnouncements = MutableStateFlow<List<ClubAnnouncementSummary>>(emptyList())
     val recentClubAnnouncements: StateFlow<List<ClubAnnouncementSummary>> = _recentClubAnnouncements
 
+    private val _clubAnalytics = MutableStateFlow<List<ClubAnalytics>>(emptyList())
+    val clubAnalytics: StateFlow<List<ClubAnalytics>> = _clubAnalytics
+
     private var startedClubs = false
     private var membersClubId: String? = null
     private var announcementsClubId: String? = null
     private var startedMyClubs = false
     private var startedRecentAnnouncements = false
+    private var startedClubAnalytics = false
     private val recentAnnouncementListeners = mutableMapOf<String, ListenerRegistration>()
+    private val analyticsMemberListeners = mutableMapOf<String, ListenerRegistration>()
+    private val analyticsAnnouncementListeners = mutableMapOf<String, ListenerRegistration>()
+    private val analyticsClubNames = mutableMapOf<String, String>()
+    private val analyticsMemberCounts = mutableMapOf<String, Int>()
+    private val analyticsRecentJoins7Days = mutableMapOf<String, Int>()
+    private val analyticsLastMemberJoinAt = mutableMapOf<String, Timestamp?>()
+    private val analyticsAnnouncementCounts = mutableMapOf<String, Int>()
+    private val analyticsLastAnnouncementAt = mutableMapOf<String, Timestamp?>()
 
     fun listenClubs() {
         if (startedClubs) return
@@ -93,6 +116,11 @@ class ClubViewModel : ViewModel() {
             .collection("clubs")
             .addSnapshotListener { snap, e ->
                 if (e != null) {
+                    // Do not block clubs UI with membership-listener permission issues.
+                    if (isPermissionDenied(e)) {
+                        _myClubIds.value = emptySet()
+                        return@addSnapshotListener
+                    }
                     _ui.value = _ui.value.copy(error = e.message)
                     return@addSnapshotListener
                 }
@@ -212,6 +240,9 @@ class ClubViewModel : ViewModel() {
                         .limit(limitPerClub)
                         .addSnapshotListener { snap, e ->
                             if (e != null) {
+                                if (isPermissionDenied(e)) {
+                                    return@addSnapshotListener
+                                }
                                 _ui.value = _ui.value.copy(error = e.message)
                                 return@addSnapshotListener
                             }
@@ -235,6 +266,106 @@ class ClubViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun listenClubAnalytics() {
+        if (startedClubAnalytics) return
+        startedClubAnalytics = true
+        listenClubs()
+
+        viewModelScope.launch {
+            _clubs.collect { clubs ->
+                val activeClubIds = clubs.map { it.id }.toSet()
+
+                analyticsClubNames.clear()
+                clubs.forEach { analyticsClubNames[it.id] = it.name }
+
+                val staleMemberIds = analyticsMemberListeners.keys - activeClubIds
+                staleMemberIds.forEach { clubId ->
+                    analyticsMemberListeners.remove(clubId)?.remove()
+                    analyticsMemberCounts.remove(clubId)
+                    analyticsRecentJoins7Days.remove(clubId)
+                    analyticsLastMemberJoinAt.remove(clubId)
+                }
+
+                val staleAnnouncementIds = analyticsAnnouncementListeners.keys - activeClubIds
+                staleAnnouncementIds.forEach { clubId ->
+                    analyticsAnnouncementListeners.remove(clubId)?.remove()
+                    analyticsAnnouncementCounts.remove(clubId)
+                    analyticsLastAnnouncementAt.remove(clubId)
+                }
+
+                clubs.forEach { club ->
+                    val clubId = club.id
+
+                    if (!analyticsMemberListeners.containsKey(clubId)) {
+                        analyticsMemberListeners[clubId] = db.collection("clubs")
+                            .document(clubId)
+                            .collection("members")
+                            .addSnapshotListener { snap, e ->
+                                if (e != null) {
+                                    _ui.value = _ui.value.copy(error = e.message)
+                                    return@addSnapshotListener
+                                }
+
+                                val docs = snap?.documents ?: emptyList()
+                                val sevenDaysAgoMillis = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+
+                                analyticsMemberCounts[clubId] = docs.size
+                                analyticsRecentJoins7Days[clubId] = docs.count { doc ->
+                                    val joinedAtMillis = doc.getTimestamp("joinedAt")?.toDate()?.time ?: 0L
+                                    joinedAtMillis >= sevenDaysAgoMillis
+                                }
+                                analyticsLastMemberJoinAt[clubId] = docs
+                                    .mapNotNull { it.getTimestamp("joinedAt") }
+                                    .maxByOrNull { it.toDate().time }
+
+                                publishClubAnalytics()
+                            }
+                    }
+
+                    if (!analyticsAnnouncementListeners.containsKey(clubId)) {
+                        analyticsAnnouncementListeners[clubId] = db.collection("clubs")
+                            .document(clubId)
+                            .collection("announcements")
+                            .addSnapshotListener { snap, e ->
+                                if (e != null) {
+                                    _ui.value = _ui.value.copy(error = e.message)
+                                    return@addSnapshotListener
+                                }
+
+                                val docs = snap?.documents ?: emptyList()
+                                analyticsAnnouncementCounts[clubId] = docs.size
+                                analyticsLastAnnouncementAt[clubId] = docs
+                                    .mapNotNull { it.getTimestamp("createdAt") }
+                                    .maxByOrNull { it.toDate().time }
+
+                                publishClubAnalytics()
+                            }
+                    }
+                }
+
+                publishClubAnalytics()
+            }
+        }
+    }
+
+    private fun publishClubAnalytics() {
+        _clubAnalytics.value = analyticsClubNames.keys.map { clubId ->
+            ClubAnalytics(
+                clubId = clubId,
+                clubName = analyticsClubNames[clubId] ?: "",
+                memberCount = analyticsMemberCounts[clubId] ?: 0,
+                announcementCount = analyticsAnnouncementCounts[clubId] ?: 0,
+                recentJoins7Days = analyticsRecentJoins7Days[clubId] ?: 0,
+                lastAnnouncementAt = analyticsLastAnnouncementAt[clubId],
+                lastMemberJoinAt = analyticsLastMemberJoinAt[clubId]
+            )
+        }.sortedWith(
+            compareByDescending<ClubAnalytics> { it.memberCount }
+                .thenByDescending { it.announcementCount }
+                .thenBy { it.clubName.lowercase() }
+        )
     }
 
     fun createClub(
@@ -429,7 +560,18 @@ class ClubViewModel : ViewModel() {
             }
     }
 
+    override fun onCleared() {
+        recentAnnouncementListeners.values.forEach { it.remove() }
+        analyticsMemberListeners.values.forEach { it.remove() }
+        analyticsAnnouncementListeners.values.forEach { it.remove() }
+        super.onCleared()
+    }
+
     fun clearError() {
         _ui.value = _ui.value.copy(error = null)
+    }
+
+    private fun isPermissionDenied(error: Throwable): Boolean {
+        return (error as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
     }
 }

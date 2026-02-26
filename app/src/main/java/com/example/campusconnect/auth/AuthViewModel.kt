@@ -3,9 +3,12 @@ package com.example.campusconnect.auth
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.regex.Pattern
 
 data class AuthState(
     val loading: Boolean = false,
@@ -22,23 +25,38 @@ class AuthViewModel : ViewModel() {
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state
 
-    // ✅ Secret admin code (change to your own)
+    // Secret admin code (change to your own)
     private val SECRET_ADMIN_CODE = "CC-ADMIN-2026"
+    private val emailPattern = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
 
     /**
      * Register a user.
      * - Everyone becomes "student" unless they provide correct adminCode.
      */
     fun register(name: String, email: String, password: String, adminCode: String) {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            _state.value = AuthState(error = "Please fill all fields")
+        val trimmedName = name.trim()
+        val trimmedEmail = email.trim()
+
+        if (trimmedName.isBlank() || trimmedEmail.isBlank() || password.isBlank()) {
+            _state.value = AuthState(error = "Please fill all required fields in a valid way.")
+            return
+        }
+
+        if (!isValidEmail(trimmedEmail)) {
+            _state.value = AuthState(error = "Enter a valid email address.")
+            return
+        }
+
+        val passwordValidationError = validateStrongPassword(password)
+        if (passwordValidationError != null) {
+            _state.value = AuthState(error = passwordValidationError)
             return
         }
 
         val role = if (adminCode.trim() == SECRET_ADMIN_CODE) "admin" else "student"
         _state.value = AuthState(loading = true)
 
-        auth.createUserWithEmailAndPassword(email.trim(), password)
+        auth.createUserWithEmailAndPassword(trimmedEmail, password)
             .addOnSuccessListener { result ->
                 val uid = result.user?.uid
                 if (uid == null) {
@@ -46,20 +64,17 @@ class AuthViewModel : ViewModel() {
                     return@addOnSuccessListener
                 }
 
-                // ✅ 1) NAVIGATE IMMEDIATELY (so UI never hangs on Creating...)
                 _state.value = AuthState(success = true, role = role)
 
-                // ✅ 2) Save profile in Firestore (do not block navigation)
                 val userDoc = hashMapOf(
-                    "name" to name.trim(),
-                    "email" to email.trim(),
+                    "name" to trimmedName,
+                    "email" to trimmedEmail,
                     "role" to role,
                     "createdAt" to Timestamp.now()
                 )
 
                 db.collection("users").document(uid).set(userDoc)
                     .addOnFailureListener { e ->
-                        // optional: show message later; do NOT undo navigation
                         _state.value = AuthState(
                             success = true,
                             role = role,
@@ -70,24 +85,30 @@ class AuthViewModel : ViewModel() {
             .addOnFailureListener { e ->
                 _state.value = AuthState(
                     loading = false,
-                    error = e.message ?: "Registration failed"
+                    error = e.message ?: "Registration failed."
                 )
             }
     }
-
 
     /**
      * Login and fetch role from Firestore.
      */
     fun login(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _state.value = AuthState(error = "Enter email and password")
+        val trimmedEmail = email.trim()
+
+        if (trimmedEmail.isBlank() || password.isBlank()) {
+            _state.value = AuthState(error = "Please fill all required fields in a valid way.")
+            return
+        }
+
+        if (!isValidEmail(trimmedEmail)) {
+            _state.value = AuthState(error = "Enter a valid email address.")
             return
         }
 
         _state.value = AuthState(loading = true)
 
-        auth.signInWithEmailAndPassword(email.trim(), password)
+        auth.signInWithEmailAndPassword(trimmedEmail, password)
             .addOnSuccessListener {
                 val uid = auth.currentUser?.uid
                 if (uid == null) {
@@ -98,7 +119,13 @@ class AuthViewModel : ViewModel() {
                 fetchRole(uid)
             }
             .addOnFailureListener { e ->
-                _state.value = AuthState(error = e.message ?: "Login failed.")
+                val message = when {
+                    e is FirebaseAuthInvalidCredentialsException && e.errorCode == "ERROR_WRONG_PASSWORD" -> "Incorrect password."
+                    e is FirebaseAuthInvalidCredentialsException && e.errorCode == "ERROR_INVALID_EMAIL" -> "Enter a valid email address."
+                    e is FirebaseAuthInvalidUserException -> "No account found for this email."
+                    else -> e.message ?: "Login failed."
+                }
+                _state.value = AuthState(error = message)
             }
     }
 
@@ -115,7 +142,6 @@ class AuthViewModel : ViewModel() {
 
         auth.sendPasswordResetEmail(email.trim())
             .addOnSuccessListener {
-                // Using error as a general message display (you can rename later to "message")
                 _state.value = AuthState(error = "Password reset link sent. Check your email.")
             }
             .addOnFailureListener { e ->
@@ -147,5 +173,18 @@ class AuthViewModel : ViewModel() {
         val uid = auth.currentUser?.uid ?: return
         _state.value = AuthState(loading = true)
         fetchRole(uid)
+    }
+
+    private fun isValidEmail(email: String): Boolean {
+        return emailPattern.matcher(email).matches()
+    }
+
+    private fun validateStrongPassword(password: String): String? {
+        if (password.length < 8) return "Password must be at least 8 characters."
+        if (!password.any { it.isUpperCase() }) return "Password must include at least one uppercase letter."
+        if (!password.any { it.isLowerCase() }) return "Password must include at least one lowercase letter."
+        if (!password.any { it.isDigit() }) return "Password must include at least one number."
+        if (password.none { !it.isLetterOrDigit() }) return "Password must include at least one special character."
+        return null
     }
 }

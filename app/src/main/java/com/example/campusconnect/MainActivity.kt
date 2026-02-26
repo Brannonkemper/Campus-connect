@@ -23,6 +23,7 @@ import com.example.campusconnect.clubs.ClubAnnouncementsScreen
 import com.example.campusconnect.clubs.ClubViewModel
 import com.example.campusconnect.clubs.StudentClubsScreen
 import com.example.campusconnect.dashboard.AdminDashboard
+import com.example.campusconnect.dashboard.AdminReportsAnalyticsScreen
 import com.example.campusconnect.dashboard.StudentDashboard
 import com.example.campusconnect.events.AdminEventsScreen
 import com.example.campusconnect.events.EventViewModel
@@ -88,17 +89,26 @@ fun AppRoot() {
             onLogout = {
                 authViewModel.logout()
                 screen = "login"
-            }
+            },
+            eventVm = eventVm,
+            clubVm = clubVm
         )
 
         "admin" -> AdminDashboard(
             onOpenPostAnnouncement = { screen = "admin_post_announcement" },
             onOpenEvents = { screen = "admin_events" },
             onOpenClubs = { screen = "admin_clubs" },
+            onOpenReports = { screen = "admin_reports" },
             onLogout = {
                 authViewModel.logout()
                 screen = "login"
             }
+        )
+
+        "admin_reports" -> AdminReportsAnalyticsScreen(
+            onBack = { screen = "admin" },
+            vm = clubVm,
+            eventVm = eventVm
         )
 
         "admin_post_announcement" -> AdminPostAnnouncementScreen(

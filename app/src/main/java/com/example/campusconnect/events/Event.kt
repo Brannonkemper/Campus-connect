@@ -9,6 +9,7 @@ data class Event(
     val venue: String = "",
     val description: String = "",
     val imageUrl: String = "",
+    val registrationCount: Int = 0,
     val createdAt: Timestamp? = null,
     val createdBy: String = ""
 )

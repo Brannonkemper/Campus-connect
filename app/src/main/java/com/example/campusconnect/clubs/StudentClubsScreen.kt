@@ -1,6 +1,8 @@
 package com.example.campusconnect.clubs
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +11,7 @@ import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,16 +34,37 @@ fun StudentClubsScreen(
     val ui by vm.ui.collectAsState()
     val clubs by vm.clubs.collectAsState()
     val myClubIds by vm.myClubIds.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        vm.clearError()
         vm.listenClubs()
         vm.listenMyClubs()
+    }
+
+    val filteredClubs = remember(clubs, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) {
+            clubs
+        } else {
+            clubs.filter { it.name.contains(query, ignoreCase = true) }
+        }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(                title = { Text("Clubs") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                navigationIcon = {
+                    TextButton(
+                        onClick = onBack,
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text("Back")
+                    }
+                },                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent
                 )
             )
@@ -106,11 +130,32 @@ fun StudentClubsScreen(
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
 
-                if (clubs.isEmpty() && !ui.loading) {
-                    Text("No clubs yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Search club name") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null
+                        )
+                    }
+                )
+
+                if (filteredClubs.isEmpty() && !ui.loading) {
+                    Text(
+                        if (searchQuery.isBlank()) "No clubs yet." else "No clubs found for \"$searchQuery\".",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        clubs.forEach { club ->
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 8.dp)
+                    ) {
+                        items(filteredClubs, key = { it.id }) { club ->
                             val isMember = myClubIds.contains(club.id)
                             ElevatedCard(
                                 modifier = Modifier.fillMaxWidth(),
@@ -179,10 +224,6 @@ fun StudentClubsScreen(
         }
     }
 }
-
-
-
-
 
 
 

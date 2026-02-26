@@ -13,18 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.GetPasswordOption
-import androidx.credentials.PasswordCredential
-import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.launch
 import com.example.campusconnect.ui.components.SoftBackground
 
 @Composable
@@ -36,12 +29,8 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var localError by remember { mutableStateOf<String?>(null) }
 
     val state by vm.state.collectAsState()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val credentialManager = remember { CredentialManager.create(context) }
 
     LaunchedEffect(state.success, state.role) {
         if (state.success && state.role != null) {
@@ -134,31 +123,7 @@ fun LoginScreen(
                     }
 
                     Button(
-                        onClick = {
-                            if (email.isNotBlank() && password.isNotBlank()) {
-                                vm.login(email, password)
-                            } else {
-                                scope.launch {
-                                    localError = null
-                                    try {
-                                        val request = GetCredentialRequest(
-                                            listOf(GetPasswordOption())
-                                        )
-                                        val result = credentialManager.getCredential(context, request)
-                                        val credential = result.credential
-                                        if (credential is PasswordCredential) {
-                                            email = credential.id
-                                            password = credential.password
-                                            vm.login(email, password)
-                                        } else {
-                                            localError = "No saved credentials found."
-                                        }
-                                    } catch (e: GetCredentialException) {
-                                        localError = e.message ?: "Could not access saved credentials."
-                                    }
-                                }
-                            }
-                        },
+                        onClick = { vm.login(email, password) },
                         enabled = !state.loading,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -185,10 +150,6 @@ fun LoginScreen(
                         enabled = !state.loading
                     ) {
                         Text("Create account")
-                    }
-
-                    localError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error)
                     }
 
                     state.error?.let {

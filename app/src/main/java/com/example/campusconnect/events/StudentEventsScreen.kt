@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,9 +28,22 @@ fun StudentEventsScreen(
 ) {
     val ui by vm.ui.collectAsState()
     val events by vm.events.collectAsState()
+    val registeredEventIds by vm.registeredEventIds.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        vm.clearError()
         vm.listenEvents()
+        vm.listenMyEventRegistrations()
+    }
+
+    val filteredEvents = remember(events, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) {
+            events
+        } else {
+            events.filter { it.title.contains(query, ignoreCase = true) }
+        }
     }
 
     val headerBrush = Brush.linearGradient(
@@ -82,6 +99,22 @@ fun StudentEventsScreen(
                     }
                 }
 
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Search event name") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+
                 if (ui.loading) {
                     item { CircularProgressIndicator() }
                 }
@@ -90,11 +123,15 @@ fun StudentEventsScreen(
                     item { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
 
-                if (events.isEmpty() && !ui.loading) {
-                    item { Text("No events yet.") }
+                if (filteredEvents.isEmpty() && !ui.loading) {
+                    item {
+                        Text(
+                            if (searchQuery.isBlank()) "No events yet." else "No events found for \"$searchQuery\"."
+                        )
+                    }
                 } else {
-                    items(events.size) { index ->
-                        val event = events[index]
+                    items(filteredEvents.size) { index ->
+                        val event = filteredEvents[index]
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp)
@@ -127,6 +164,52 @@ fun StudentEventsScreen(
                                     text = event.description,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
+                                val isRegistered = registeredEventIds.contains(event.id)
+                                val displayRegistrations = event.registrationCount + if (isRegistered) 1 else 0
+                                Text(
+                                    text = "Registrations: $displayRegistrations",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (isRegistered) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        FilledTonalButton(
+                                            onClick = {},
+                                            enabled = false,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Registered")
+                                        }
+                                        OutlinedButton(
+                                            onClick = { vm.cancelEventRegistration(event.id) },
+                                            enabled = !ui.loading,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Cancel")
+                                        }
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = { vm.registerForEvent(event.id) },
+                                        enabled = !ui.loading,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Register")
+                                    }
+                                }
                             }
                         }
                     }
@@ -135,9 +218,6 @@ fun StudentEventsScreen(
         }
     }
 }
-
-
-
 
 
 

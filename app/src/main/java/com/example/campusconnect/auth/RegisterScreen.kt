@@ -124,6 +124,11 @@ fun RegisterScreen(
                             }
                         }
                     )
+                    Text(
+                        text = "Use at least 8 characters with uppercase, lowercase, number, and special character.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     OutlinedTextField(
                         value = adminCode,

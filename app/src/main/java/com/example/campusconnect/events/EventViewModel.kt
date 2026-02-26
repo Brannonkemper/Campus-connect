@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +25,11 @@ class EventViewModel : ViewModel() {
     private val _events = MutableStateFlow<List<Event>>(emptyList())
     val events: StateFlow<List<Event>> = _events
 
+    private val _registeredEventIds = MutableStateFlow<Set<String>>(emptySet())
+    val registeredEventIds: StateFlow<Set<String>> = _registeredEventIds
+
     private var startedListening = false
+    private var startedMyRegistrations = false
 
     fun listenEvents() {
         if (startedListening) return
@@ -48,6 +53,7 @@ class EventViewModel : ViewModel() {
                         venue = doc.getString("venue") ?: "",
                         description = doc.getString("description") ?: "",
                         imageUrl = doc.getString("imageUrl") ?: "",
+                        registrationCount = (doc.getLong("registrationCount") ?: 0L).toInt(),
                         createdAt = doc.getTimestamp("createdAt"),
                         createdBy = doc.getString("createdBy") ?: ""
                     )
@@ -84,6 +90,7 @@ class EventViewModel : ViewModel() {
             "venue" to venue.trim(),
             "description" to description.trim(),
             "imageUrl" to imageUrl.trim(),
+            "registrationCount" to 0,
             "createdAt" to Timestamp.now(),
             "createdBy" to uid
         )
@@ -149,7 +156,102 @@ class EventViewModel : ViewModel() {
             }
     }
 
+    fun listenMyEventRegistrations() {
+        if (startedMyRegistrations) return
+        startedMyRegistrations = true
+
+        val uid = auth.currentUser?.uid ?: run {
+            _registeredEventIds.value = emptySet()
+            return
+        }
+
+        db.collection("users")
+            .document(uid)
+            .collection("event_registrations")
+            .addSnapshotListener { snap, e ->
+                if (e != null) {
+                    if (isPermissionDenied(e)) {
+                        _registeredEventIds.value = emptySet()
+                        return@addSnapshotListener
+                    }
+                    _ui.value = EventUiState(error = e.message)
+                    return@addSnapshotListener
+                }
+
+                _registeredEventIds.value = snap?.documents
+                    ?.map { it.id }
+                    ?.toSet()
+                    ?: emptySet()
+            }
+    }
+
+    fun registerForEvent(eventId: String) {
+        val uid = auth.currentUser?.uid ?: run {
+            _ui.value = EventUiState(error = "Not logged in")
+            return
+        }
+
+        _ui.value = EventUiState(loading = true)
+
+        val userRegistrationRef = db.collection("users")
+            .document(uid)
+            .collection("event_registrations")
+            .document(eventId)
+
+        val registrationData = hashMapOf(
+            "uid" to uid,
+            "eventId" to eventId,
+            "registeredAt" to Timestamp.now()
+        )
+
+        userRegistrationRef.set(registrationData)
+            .addOnSuccessListener {
+                _registeredEventIds.value = _registeredEventIds.value + eventId
+                _ui.value = EventUiState(loading = false)
+            }
+            .addOnFailureListener { e ->
+                val message = if (isPermissionDenied(e)) {
+                    "Registration blocked by Firestore rules. Please update permissions for users/{uid}/event_registrations."
+                } else {
+                    e.message ?: "Failed to register for event."
+                }
+                _ui.value = EventUiState(loading = false, error = message)
+            }
+    }
+
+    fun cancelEventRegistration(eventId: String) {
+        val uid = auth.currentUser?.uid ?: run {
+            _ui.value = EventUiState(error = "Not logged in")
+            return
+        }
+
+        _ui.value = EventUiState(loading = true)
+
+        val userRegistrationRef = db.collection("users")
+            .document(uid)
+            .collection("event_registrations")
+            .document(eventId)
+
+        userRegistrationRef.delete()
+            .addOnSuccessListener {
+                _registeredEventIds.value = _registeredEventIds.value - eventId
+                _ui.value = EventUiState(loading = false)
+            }
+            .addOnFailureListener { e ->
+                val message = if (isPermissionDenied(e)) {
+                    "Cancellation blocked by Firestore rules."
+                } else {
+                    e.message ?: "Failed to cancel registration."
+                }
+                _ui.value = EventUiState(loading = false, error = message)
+            }
+    }
+
     fun clearError() {
         _ui.value = _ui.value.copy(error = null)
+    }
+
+    private fun isPermissionDenied(error: Throwable): Boolean {
+        return (error as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
     }
 }

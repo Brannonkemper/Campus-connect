@@ -90,7 +90,8 @@ fun StudentAiChatScreen(
                     TextButton(
                         onClick = onBack,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Text("Back")
@@ -100,7 +101,8 @@ fun StudentAiChatScreen(
                     TextButton(
                         onClick = { aiChatVm.clearChat() },
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Text("Clear")
@@ -304,8 +306,6 @@ private fun truncate(text: String, max: Int = 180): String {
     if (clean.length <= max) return clean
     return clean.take(max - 3) + "..."
 }
-
-
 
 
 

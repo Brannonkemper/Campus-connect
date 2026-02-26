@@ -17,7 +17,7 @@ fun SoftBackground(
     val gradient = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.secondary
+            MaterialTheme.colorScheme.background
         )
     )
     Box(

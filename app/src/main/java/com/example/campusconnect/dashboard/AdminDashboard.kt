@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.ManageAccounts
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ fun AdminDashboard(
     onOpenPostAnnouncement: () -> Unit,
     onOpenEvents: () -> Unit,
     onOpenClubs: () -> Unit,
+    onOpenReports: () -> Unit,
     onLogout: () -> Unit
 ) {
     Scaffold(
@@ -114,15 +114,11 @@ fun AdminDashboard(
 
                     DashboardCard(
                         title = "Reports & Analytics",
-                        description = "View system usage and activity reports",
-                        icon = Icons.Default.Analytics
+                        description = "See club participation, rankings, and growth trends",
+                        icon = Icons.Default.Analytics,
+                        onClick = onOpenReports
                     )
 
-                    DashboardCard(
-                        title = "System Settings",
-                        description = "Configure application preferences",
-                        icon = Icons.Default.Settings
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -139,8 +135,6 @@ fun AdminDashboard(
         }
     }
 }
-
-
 
 
 
