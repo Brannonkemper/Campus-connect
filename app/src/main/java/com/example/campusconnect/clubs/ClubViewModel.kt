@@ -463,10 +463,12 @@ class ClubViewModel : ViewModel() {
             .addOnSuccessListener { doc ->
                 val name = doc.getString("name") ?: ""
                 val email = doc.getString("email") ?: ""
+                val profileImageUrl = doc.getString("profileImageUrl") ?: ""
                 val member = hashMapOf(
                     "uid" to uid,
                     "name" to name,
                     "email" to email,
+                    "profileImageUrl" to profileImageUrl,
                     "joinedAt" to Timestamp.now()
                 )
 

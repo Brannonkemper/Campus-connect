@@ -198,24 +198,56 @@ class EventViewModel : ViewModel() {
             .collection("event_registrations")
             .document(eventId)
 
-        val registrationData = hashMapOf(
-            "uid" to uid,
-            "eventId" to eventId,
-            "registeredAt" to Timestamp.now()
-        )
+        db.collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { userDoc ->
+                val registrationData = hashMapOf(
+                    "uid" to uid,
+                    "eventId" to eventId,
+                    "name" to (userDoc.getString("name") ?: ""),
+                    "email" to (userDoc.getString("email") ?: auth.currentUser?.email.orEmpty()),
+                    "profileImageUrl" to (userDoc.getString("profileImageUrl") ?: ""),
+                    "registeredAt" to Timestamp.now()
+                )
 
-        userRegistrationRef.set(registrationData)
-            .addOnSuccessListener {
-                _registeredEventIds.value = _registeredEventIds.value + eventId
-                _ui.value = EventUiState(loading = false)
+                userRegistrationRef.set(registrationData)
+                    .addOnSuccessListener {
+                        _registeredEventIds.value = _registeredEventIds.value + eventId
+                        _ui.value = EventUiState(loading = false)
+                    }
+                    .addOnFailureListener { e ->
+                        val message = if (isPermissionDenied(e)) {
+                            "Registration blocked by Firestore rules. Please update permissions for users/{uid}/event_registrations."
+                        } else {
+                            e.message ?: "Failed to register for event."
+                        }
+                        _ui.value = EventUiState(loading = false, error = message)
+                    }
             }
-            .addOnFailureListener { e ->
-                val message = if (isPermissionDenied(e)) {
-                    "Registration blocked by Firestore rules. Please update permissions for users/{uid}/event_registrations."
-                } else {
-                    e.message ?: "Failed to register for event."
-                }
-                _ui.value = EventUiState(loading = false, error = message)
+            .addOnFailureListener {
+                val registrationData = hashMapOf(
+                    "uid" to uid,
+                    "eventId" to eventId,
+                    "name" to "",
+                    "email" to auth.currentUser?.email.orEmpty(),
+                    "profileImageUrl" to "",
+                    "registeredAt" to Timestamp.now()
+                )
+
+                userRegistrationRef.set(registrationData)
+                    .addOnSuccessListener {
+                        _registeredEventIds.value = _registeredEventIds.value + eventId
+                        _ui.value = EventUiState(loading = false)
+                    }
+                    .addOnFailureListener { e ->
+                        val message = if (isPermissionDenied(e)) {
+                            "Registration blocked by Firestore rules. Please update permissions for users/{uid}/event_registrations."
+                        } else {
+                            e.message ?: "Failed to register for event."
+                        }
+                        _ui.value = EventUiState(loading = false, error = message)
+                    }
             }
     }
 

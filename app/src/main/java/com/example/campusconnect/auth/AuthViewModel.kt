@@ -70,6 +70,10 @@ class AuthViewModel : ViewModel() {
                     "name" to trimmedName,
                     "email" to trimmedEmail,
                     "role" to role,
+                    "phone" to "",
+                    "department" to "",
+                    "yearLevel" to "",
+                    "profileImageUrl" to "",
                     "createdAt" to Timestamp.now()
                 )
 

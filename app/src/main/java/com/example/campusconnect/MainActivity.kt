@@ -18,6 +18,8 @@ import com.example.campusconnect.ai.AiChatViewModel
 import com.example.campusconnect.auth.AuthViewModel
 import com.example.campusconnect.auth.LoginScreen
 import com.example.campusconnect.auth.RegisterScreen
+import com.example.campusconnect.auth.StudentProfileScreen
+import com.example.campusconnect.auth.UserProfileViewModel
 import com.example.campusconnect.clubs.AdminClubsScreen
 import com.example.campusconnect.clubs.ClubAnnouncementsScreen
 import com.example.campusconnect.clubs.ClubViewModel
@@ -59,6 +61,7 @@ fun AppRoot() {
     val eventVm: EventViewModel = viewModel()
     val clubVm: ClubViewModel = viewModel()
     val aiChatVm: AiChatViewModel = viewModel()
+    val userProfileVm: UserProfileViewModel = viewModel()
 
     LaunchedEffect(Unit) {
         authViewModel.tryRestoreSession()
@@ -82,16 +85,24 @@ fun AppRoot() {
         )
 
         "student" -> StudentDashboard(
+            onOpenProfile = { screen = "student_profile" },
             onOpenAnnouncements = { screen = "student_announcements" },
             onOpenEvents = { screen = "student_events" },
             onOpenClubs = { screen = "student_clubs" },
             onOpenAiChat = { screen = "student_ai_chat" },
+            announcementVm = announcementVm,
+            profileVm = userProfileVm,
+            eventVm = eventVm,
+            clubVm = clubVm
+        )
+
+        "student_profile" -> StudentProfileScreen(
+            onBack = { screen = "student" },
             onLogout = {
                 authViewModel.logout()
                 screen = "login"
             },
-            eventVm = eventVm,
-            clubVm = clubVm
+            vm = userProfileVm
         )
 
         "admin" -> AdminDashboard(

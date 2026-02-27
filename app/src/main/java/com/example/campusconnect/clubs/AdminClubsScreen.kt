@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.ListAlt
@@ -42,9 +43,6 @@ fun AdminClubsScreen(
     var localError by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
     var expandedMembersForId by remember { mutableStateOf<String?>(null) }
-    var composerClubId by remember { mutableStateOf<String?>(null) }
-    var announcementTitle by remember { mutableStateOf("") }
-    var announcementMessage by remember { mutableStateOf("") }
 
     val ui by vm.ui.collectAsState()
     val clubs by vm.clubs.collectAsState()
@@ -65,7 +63,14 @@ fun AdminClubsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(                title = { Text("Clubs Studio") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent
                 )
             )
@@ -322,96 +327,37 @@ fun AdminClubsScreen(
                                         }
                                     }
 
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                expandedMembersForId =
-                                                    if (expandedMembersForId == club.id) null else club.id
-                                                if (expandedMembersForId == club.id) {
-                                                    vm.listenMembers(club.id)
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    expandedMembersForId =
+                                                        if (expandedMembersForId == club.id) null else club.id
+                                                    if (expandedMembersForId == club.id) {
+                                                        vm.listenMembers(club.id)
+                                                    }
                                                 }
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.ListAlt,
-                                                contentDescription = null
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text("Members")
-                                        }
-                                        OutlinedButton(
-                                            onClick = {
-                                                onOpenClubAnnouncements(club.id, club.name)
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Send,
-                                                contentDescription = null
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text("Announcements")
-                                        }
-                                        OutlinedButton(
-                                            onClick = {
-                                                composerClubId = if (composerClubId == club.id) null else club.id
-                                                if (composerClubId == club.id) {
-                                                    announcementTitle = ""
-                                                    announcementMessage = ""
-                                                }
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Send,
-                                                contentDescription = null
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text("Compose")
-                                        }
-                                    }
-
-                                    if (composerClubId == club.id) {
-                                        ElevatedCard(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(16.dp)
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(12.dp),
-                                                verticalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
-                                                Text(
-                                                    text = "Post to ${club.name}",
-                                                    style = MaterialTheme.typography.titleSmall
+                                                Icon(
+                                                    imageVector = Icons.Default.ListAlt,
+                                                    contentDescription = null
                                                 )
-                                                OutlinedTextField(
-                                                    value = announcementTitle,
-                                                    onValueChange = { announcementTitle = it },
-                                                    label = { Text("Title") },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                                OutlinedTextField(
-                                                    value = announcementMessage,
-                                                    onValueChange = { announcementMessage = it },
-                                                    label = { Text("Message") },
-                                                    minLines = 3,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                                Button(
-                                                    onClick = {
-                                                        vm.postClubAnnouncement(
-                                                            club.id,
-                                                            announcementTitle,
-                                                            announcementMessage
-                                                        ) {
-                                                            announcementTitle = ""
-                                                            announcementMessage = ""
-                                                        }
-                                                    },
-                                                    enabled = !ui.loading,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Text(if (ui.loading) "Posting..." else "Post Announcement")
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("Members")
+                                            }
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    onOpenClubAnnouncements(club.id, club.name)
                                                 }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Send,
+                                                    contentDescription = null
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("Announcements")
                                             }
                                         }
                                     }
@@ -443,9 +389,6 @@ fun AdminClubsScreen(
         }
     }
 }
-
-
-
 
 
 

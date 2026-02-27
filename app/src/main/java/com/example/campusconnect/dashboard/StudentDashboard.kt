@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,22 +21,24 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Announcement
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.campusconnect.announcements.AnnouncementViewModel
+import com.example.campusconnect.auth.UserProfileViewModel
 import com.example.campusconnect.clubs.Club
 import com.example.campusconnect.clubs.ClubViewModel
 import com.example.campusconnect.events.Event
@@ -70,23 +73,29 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDashboard(
+    onOpenProfile: () -> Unit,
     onOpenAnnouncements: () -> Unit,
     onOpenEvents: () -> Unit,
     onOpenClubs: () -> Unit,
     onOpenAiChat: () -> Unit,
-    onLogout: () -> Unit,
+    announcementVm: AnnouncementViewModel,
+    profileVm: UserProfileViewModel,
     eventVm: EventViewModel,
     clubVm: ClubViewModel
 ) {
-    var selectedDestination by rememberSaveable { mutableStateOf(StudentDestination.ANNOUNCEMENTS) }
+    var selectedDestination by rememberSaveable { mutableStateOf(StudentDestination.CLUBS) }
 
     val events by eventVm.events.collectAsState()
     val clubs by clubVm.clubs.collectAsState()
     val myClubIds by clubVm.myClubIds.collectAsState()
     val registeredEventIds by eventVm.registeredEventIds.collectAsState()
+    val announcements by announcementVm.announcements.collectAsState()
+    val profile by profileVm.profile.collectAsState()
     val nowMillis = System.currentTimeMillis()
 
     LaunchedEffect(Unit) {
+        profileVm.listenMyProfile()
+        announcementVm.listenAnnouncements()
         eventVm.listenEvents()
         eventVm.listenMyEventRegistrations()
         clubVm.listenClubs()
@@ -119,15 +128,48 @@ fun StudentDashboard(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Student Dashboard") },
+                navigationIcon = {
+                    IconButton(onClick = onOpenProfile) {
+                        val imageUrl = profile.profileImageUrl
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            if (imageUrl.isBlank()) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    modifier = Modifier.padding(6.dp)
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Profile",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .height(30.dp)
+                                        .width(30.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                title = { Text("Campus Connect") },
                 actions = {
-                    TextButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.Default.Logout,
-                            contentDescription = "Logout"
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Logout")
+                    IconButton(onClick = onOpenAnnouncements) {
+                        BadgedBox(
+                            badge = {
+                                if (announcements.isNotEmpty()) {
+                                    Badge { Text(announcements.size.toString()) }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Announcements"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -179,28 +221,6 @@ fun StudentDashboard(
                 }
 
                 Spacer(Modifier.height(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "Search campus updates",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
 
                 Spacer(Modifier.height(10.dp))
 
@@ -324,7 +344,6 @@ fun StudentDashboard(
                                 onClick = {
                                     selectedDestination = destination
                                     when (destination) {
-                                        StudentDestination.ANNOUNCEMENTS -> onOpenAnnouncements()
                                         StudentDestination.CLUBS -> onOpenClubs()
                                         StudentDestination.EVENTS -> onOpenEvents()
                                         StudentDestination.AI_CHAT -> onOpenAiChat()
@@ -476,7 +495,6 @@ private enum class StudentDestination(
     val label: String,
     val icon: ImageVector
 ) {
-    ANNOUNCEMENTS("Announcements", Icons.Default.Announcement),
     CLUBS("Clubs", Icons.Default.Groups),
     EVENTS("Events", Icons.Default.Event),
     AI_CHAT("AI Chat", Icons.Default.SmartToy)

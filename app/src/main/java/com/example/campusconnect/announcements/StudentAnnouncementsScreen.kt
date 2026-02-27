@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -37,7 +38,12 @@ fun StudentAnnouncementsScreen(
         topBar = {
             CenterAlignedTopAppBar(                title = { Text("Announcements") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
                 },                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent
                 )
@@ -166,7 +172,6 @@ private fun formatTimestamp(ts: Timestamp?): String? {
     val formatter = SimpleDateFormat("EEE, MMM d, h:mm a", Locale.getDefault())
     return formatter.format(ts.toDate())
 }
-
 
 
 
