@@ -43,6 +43,7 @@ fun AdminClubsScreen(
     var localError by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
     var expandedMembersForId by remember { mutableStateOf<String?>(null) }
+    var deleteTarget by remember { mutableStateOf<Club?>(null) }
 
     val ui by vm.ui.collectAsState()
     val clubs by vm.clubs.collectAsState()
@@ -322,7 +323,7 @@ fun AdminClubsScreen(
                                         ) {
                                             Text("Edit")
                                         }
-                                        OutlinedButton(onClick = { vm.deleteClub(club.id) }) {
+                                        OutlinedButton(onClick = { deleteTarget = club }) {
                                             Text("Delete")
                                         }
                                     }
@@ -388,8 +389,32 @@ fun AdminClubsScreen(
             }
         }
     }
-}
 
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete club?") },
+            text = {
+                Text("This will permanently delete \"${target.name}\".")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.deleteClub(target.id)
+                        deleteTarget = null
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
 
 
 

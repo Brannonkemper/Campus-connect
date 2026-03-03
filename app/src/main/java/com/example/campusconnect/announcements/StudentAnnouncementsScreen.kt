@@ -25,13 +25,15 @@ import java.util.Locale
 @Composable
 fun StudentAnnouncementsScreen(
     onBack: () -> Unit,
-    vm: AnnouncementViewModel
+    vm: AnnouncementViewModel,
+    profileVm: com.example.campusconnect.auth.UserProfileViewModel
 ) {
     val ui by vm.ui.collectAsState()
     val announcements by vm.announcements.collectAsState()
 
     LaunchedEffect(Unit) {
         vm.listenAnnouncements()
+        profileVm.markAnnouncementsSeen()
     }
 
     Scaffold(
@@ -172,7 +174,6 @@ private fun formatTimestamp(ts: Timestamp?): String? {
     val formatter = SimpleDateFormat("EEE, MMM d, h:mm a", Locale.getDefault())
     return formatter.format(ts.toDate())
 }
-
 
 
 

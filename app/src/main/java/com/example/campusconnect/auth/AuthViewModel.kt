@@ -5,6 +5,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -133,6 +134,67 @@ class AuthViewModel : ViewModel() {
             }
     }
 
+    fun signInWithGoogle(idToken: String, displayName: String?, email: String?) {
+        if (idToken.isBlank()) {
+            _state.value = AuthState(error = "Google sign-in failed (missing token).")
+            return
+        }
+
+        _state.value = AuthState(loading = true)
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+        auth.signInWithCredential(credential)
+            .addOnSuccessListener { result ->
+                val user = result.user
+                val uid = user?.uid
+                if (uid == null) {
+                    _state.value = AuthState(loading = false, error = "Google sign-in failed (no user id).")
+                    return@addOnSuccessListener
+                }
+
+                val usersRef = db.collection("users").document(uid)
+                usersRef.get()
+                    .addOnSuccessListener { doc ->
+                        if (doc.exists()) {
+                            val role = doc.getString("role") ?: "student"
+                            _state.value = AuthState(success = true, role = role)
+                        } else {
+                            val inferredName = displayName?.trim().orEmpty().ifBlank {
+                                val fallbackEmail = email ?: user.email.orEmpty()
+                                fallbackEmail.substringBefore("@")
+                            }
+                            val userDoc = hashMapOf(
+                                "name" to inferredName,
+                                "email" to (email ?: user.email.orEmpty()),
+                                "role" to "student",
+                                "phone" to "",
+                                "department" to "",
+                                "yearLevel" to "",
+                                "profileImageUrl" to "",
+                                "createdAt" to Timestamp.now()
+                            )
+                            usersRef.set(userDoc)
+                                .addOnSuccessListener {
+                                    _state.value = AuthState(success = true, role = "student")
+                                }
+                                .addOnFailureListener { e ->
+                                    _state.value = AuthState(
+                                        success = true,
+                                        role = "student",
+                                        error = "Profile save failed: ${e.message ?: "unknown error"}"
+                                    )
+                                }
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        _state.value = AuthState(error = e.message ?: "Failed to fetch user role.")
+                    }
+            }
+            .addOnFailureListener { e ->
+                _state.value = AuthState(error = e.message ?: "Google sign-in failed.")
+            }
+    }
+
     /**
      * Send password reset email.
      */
@@ -166,6 +228,10 @@ class AuthViewModel : ViewModel() {
 
     fun resetState() {
         _state.value = AuthState()
+    }
+
+    fun setError(message: String) {
+        _state.value = AuthState(error = message)
     }
 
     fun logout() {

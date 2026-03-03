@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -115,7 +114,6 @@ fun StudentAiChatScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -139,7 +137,7 @@ fun StudentAiChatScreen(
                         Log.d("AiChat", "GEMINI_API_KEY length: ${apiKey.length}")
                         if (apiKey.isBlank()) {
                             Log.e("AiChat", "GEMINI_API_KEY is blank in BuildConfig")
-                            aiChatVm.setError("Missing GEMINI_API_KEY. Set it as an environment variable.")
+                            aiChatVm.setError("Missing GEMINI_API_KEY. Set it in local.properties or as an environment variable.")
                             return@TextButton
                         }
                         Log.d("AiChat", "GEMINI_API_KEY loaded, sending request.")
@@ -305,4 +303,3 @@ private fun truncate(text: String, max: Int = 180): String {
     if (clean.length <= max) return clean
     return clean.take(max - 3) + "..."
 }
-

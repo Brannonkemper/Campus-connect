@@ -6,9 +6,11 @@ plugins {
 }
 
 val geminiApiKey = run {
+    val fromGradle = providers.gradleProperty("GEMINI_API_KEY").orNull
     val fromEnv = providers.environmentVariable("GEMINI_API_KEY").orNull
-    fromEnv.orEmpty()
+    (fromGradle ?: fromEnv).orEmpty()
 }
+
 
 android {
     namespace = "com.example.campusconnect"
@@ -69,6 +71,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("androidx.credentials:credentials:1.2.2")
     implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
     implementation("io.coil-kt:coil-compose:2.6.0")

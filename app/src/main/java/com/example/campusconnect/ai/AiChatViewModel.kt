@@ -106,7 +106,11 @@ class AiChatViewModel : ViewModel() {
                             campusContext = campusContext
                         )
                     } catch (e: Exception) {
-                        "Sorry, something went wrong. Please try again."
+                        Log.e("AiChat", "Gemini request failed", e)
+                        _ui.value = _ui.value.copy(
+                            error = e.message ?: "AI request failed. Check your connection and API key."
+                        )
+                        "Sorry, I couldn't reach the AI service. Please try again."
                     }
 
                     val assistantData = hashMapOf(
@@ -221,7 +225,7 @@ $campusContext
 
     val url = URL(
         "https://generativelanguage.googleapis.com/v1beta/models/" +
-            "gemini-3-flash-preview:generateContent?key=$apiKey"
+            "gemini-2.5-flash:generateContent"
     )
     val connection = (url.openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
@@ -229,6 +233,7 @@ $campusContext
         readTimeout = 20000
         doOutput = true
         setRequestProperty("Content-Type", "application/json")
+        setRequestProperty("x-goog-api-key", apiKey)
     }
 
     connection.outputStream.use { output ->

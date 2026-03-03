@@ -41,6 +41,7 @@ fun AdminEventsScreen(
     var editingId by remember { mutableStateOf<String?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<Event?>(null) }
 
     val ui by vm.ui.collectAsState()
     val events by vm.events.collectAsState()
@@ -332,7 +333,7 @@ fun AdminEventsScreen(
                                     ) {
                                         Text("Edit")
                                     }
-                                    TextButton(onClick = { vm.deleteEvent(event.id) }) {
+                                    TextButton(onClick = { deleteTarget = event }) {
                                         Text("Delete")
                                     }
                                 }
@@ -353,8 +354,32 @@ fun AdminEventsScreen(
             }
         }
     }
-}
 
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete event?") },
+            text = {
+                Text("This will permanently delete \"${target.title}\".")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.deleteEvent(target.id)
+                        deleteTarget = null
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
 
 
 

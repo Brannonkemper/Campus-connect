@@ -124,6 +124,12 @@ fun StudentDashboard(
         )
         .take(5)
 
+    val lastSeenAnnouncementsMs = profile.lastSeenAnnouncementsAt?.toDate()?.time ?: 0L
+    val unreadAnnouncementsCount = announcements.count { announcement ->
+        val createdAtMs = announcement.createdAt?.toDate()?.time ?: 0L
+        createdAtMs > lastSeenAnnouncementsMs
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -160,8 +166,8 @@ fun StudentDashboard(
                     IconButton(onClick = onOpenAnnouncements) {
                         BadgedBox(
                             badge = {
-                                if (announcements.isNotEmpty()) {
-                                    Badge { Text(announcements.size.toString()) }
+                                if (unreadAnnouncementsCount > 0) {
+                                    Badge { Text(unreadAnnouncementsCount.toString()) }
                                 }
                             }
                         ) {

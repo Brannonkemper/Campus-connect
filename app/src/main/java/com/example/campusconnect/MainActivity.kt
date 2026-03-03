@@ -129,7 +129,8 @@ fun AppRoot() {
 
         "student_announcements" -> StudentAnnouncementsScreen(
             onBack = { screen = "student" },
-            vm = announcementVm
+            vm = announcementVm,
+            profileVm = userProfileVm
         )
 
         "student_events" -> StudentEventsScreen(

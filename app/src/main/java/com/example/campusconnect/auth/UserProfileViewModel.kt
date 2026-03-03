@@ -5,6 +5,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -15,7 +16,8 @@ data class UserProfile(
     val phone: String = "",
     val department: String = "",
     val yearLevel: String = "",
-    val profileImageUrl: String = ""
+    val profileImageUrl: String = "",
+    val lastSeenAnnouncementsAt: Timestamp? = null
 )
 
 data class UserProfileUiState(
@@ -61,7 +63,8 @@ class UserProfileViewModel : ViewModel() {
                     phone = doc?.getString("phone").orEmpty(),
                     department = doc?.getString("department").orEmpty(),
                     yearLevel = doc?.getString("yearLevel").orEmpty(),
-                    profileImageUrl = doc?.getString("profileImageUrl").orEmpty()
+                    profileImageUrl = doc?.getString("profileImageUrl").orEmpty(),
+                    lastSeenAnnouncementsAt = doc?.getTimestamp("lastSeenAnnouncementsAt")
                 )
                 _ui.value = _ui.value.copy(loading = false, error = null)
             }
@@ -113,6 +116,16 @@ class UserProfileViewModel : ViewModel() {
 
     fun clearError() {
         _ui.value = _ui.value.copy(error = null)
+    }
+
+    fun markAnnouncementsSeen() {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("users")
+            .document(uid)
+            .set(
+                mapOf("lastSeenAnnouncementsAt" to Timestamp.now()),
+                SetOptions.merge()
+            )
     }
 
     override fun onCleared() {

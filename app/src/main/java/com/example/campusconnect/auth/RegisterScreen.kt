@@ -1,5 +1,6 @@
 package com.example.campusconnect.auth
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,12 +14,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.campusconnect.ui.components.SoftBackground
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @Composable
 fun RegisterScreen(
@@ -33,6 +40,24 @@ fun RegisterScreen(
     var showPassword by remember { mutableStateOf(false) }
 
     val state by vm.state.collectAsState()
+    val context = LocalContext.current
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        if (result.resultCode != Activity.RESULT_OK || data == null) {
+            return@rememberLauncherForActivityResult
+        }
+        val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val token = account.idToken.orEmpty()
+            vm.signInWithGoogle(token, account.displayName, account.email)
+        } catch (e: ApiException) {
+            vm.setError("Google sign-up failed.")
+        }
+    }
 
     LaunchedEffect(state.success, state.role) {
         if (state.success && state.role != null) {
@@ -159,6 +184,21 @@ fun RegisterScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("Register")
                         }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                .requestIdToken(context.getString(com.example.campusconnect.R.string.default_web_client_id))
+                                .requestEmail()
+                                .build()
+                            val client = GoogleSignIn.getClient(context, options)
+                            googleLauncher.launch(client.signInIntent)
+                        },
+                        enabled = !state.loading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Continue with Google")
                     }
 
                     TextButton(
