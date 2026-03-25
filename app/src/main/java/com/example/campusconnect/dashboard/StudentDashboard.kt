@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +68,7 @@ import com.example.campusconnect.events.EventViewModel
 import com.example.campusconnect.ui.components.SoftBackground
 import java.text.ParseException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -110,12 +112,16 @@ fun StudentDashboard(
         .filter { registeredEventIds.contains(it.id) }
         .sortedBy { eventDateMillis(it) }
 
-    val upcomingEvents = events
+    val nextUpcomingEvents = events
         .map { it to eventDateMillis(it) }
-        .filter { (_, whenMs) -> whenMs == Long.MAX_VALUE || whenMs >= nowMillis }
+        .filter { (_, whenMs) -> whenMs != Long.MAX_VALUE && whenMs >= nowMillis }
         .sortedBy { it.second }
         .map { it.first }
         .take(3)
+    val fallbackEvents = events
+        .sortedByDescending { it.createdAt?.toDate()?.time ?: 0L }
+        .take(3)
+    val dashboardUpcomingEvents = nextUpcomingEvents.ifEmpty { fallbackEvents }
 
     val topClubs = clubs
         .sortedWith(
@@ -208,132 +214,76 @@ fun StudentDashboard(
                                 )
                             )
                         )
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Column {
                         Text(
                             text = "Campus Pulse",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Spacer(Modifier.height(6.dp))
                         Text(
                             text = "See your joined clubs and registered events at a glance.",
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.9f)
                         )
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-
                 Spacer(Modifier.height(10.dp))
 
-                LazyColumn(
+                Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    val hasPersonalizedData = registeredEvents.isNotEmpty() || joinedClubs.isNotEmpty()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        SummaryStatCard(
+                            label = "Events",
+                            value = registeredEvents.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        SummaryStatCard(
+                            label = "Clubs",
+                            value = joinedClubs.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        SummaryStatCard(
+                            label = "Alerts",
+                            value = unreadAnnouncementsCount.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                    if (!hasPersonalizedData) {
-                        item {
-                            Text(
-                                text = "You have not joined a club or registered for an event yet. Register for an event or join a club to personalize this dashboard.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        item {
-                            Text(
-                                text = "Upcoming Events",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        if (upcomingEvents.isEmpty()) {
-                            item {
-                                Text(
-                                    text = "No upcoming events available.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            item {
-                                EventCarousel(events = upcomingEvents, onClick = onOpenEvents)
-                            }
-                        }
+                    val eventSectionTitle =
+                        if (registeredEvents.isNotEmpty()) "My Registered Events" else "Top 3 Upcoming Events"
+                    val eventSectionItems =
+                        if (registeredEvents.isNotEmpty()) registeredEvents.take(3) else dashboardUpcomingEvents
 
-                        item {
-                            Text(
-                                text = "Top Clubs",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        if (topClubs.isEmpty()) {
-                            item {
-                                Text(
-                                    text = "No clubs available right now.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            item {
-                                ClubCarousel(clubs = topClubs, onClick = onOpenClubs)
-                            }
-                        }
-                    } else {
-                        item {
-                            Text(
-                                text = "My Registered Events",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        if (registeredEvents.isEmpty()) {
-                            item {
-                                Text(
-                                    text = "No event registrations yet. Register for one from the upcoming list.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (upcomingEvents.isNotEmpty()) {
-                                item {
-                                    EventCarousel(events = upcomingEvents, onClick = onOpenEvents)
-                                }
-                            }
-                        } else {
-                            item {
-                                EventCarousel(events = registeredEvents, onClick = onOpenEvents)
-                            }
-                        }
+                    DashboardSectionCard(
+                        title = eventSectionTitle,
+                        modifier = Modifier.weight(1f),
+                        hasContent = eventSectionItems.isNotEmpty(),
+                        emptyMessage = "No events available right now."
+                    ) {
+                        EventCarousel(events = eventSectionItems, onClick = onOpenEvents)
+                    }
 
-                        item {
-                            Text(
-                                text = "My Joined Clubs",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        if (joinedClubs.isEmpty()) {
-                            item {
-                                Text(
-                                    text = "No joined clubs yet. Join one from the top clubs list.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (topClubs.isNotEmpty()) {
-                                item {
-                                    ClubCarousel(clubs = topClubs, onClick = onOpenClubs)
-                                }
-                            }
-                        } else {
-                            item {
-                                ClubCarousel(clubs = joinedClubs, onClick = onOpenClubs)
-                            }
-                        }
+                    val clubSectionTitle =
+                        if (joinedClubs.isNotEmpty()) "My Joined Clubs" else "Top Clubs"
+                    val clubSectionItems =
+                        if (joinedClubs.isNotEmpty()) joinedClubs else topClubs.take(3)
+
+                    DashboardSectionCard(
+                        title = clubSectionTitle,
+                        modifier = Modifier.weight(1f),
+                        hasContent = clubSectionItems.isNotEmpty(),
+                        emptyMessage = "No clubs available right now."
+                    ) {
+                        ClubCarousel(clubs = clubSectionItems, onClick = onOpenClubs)
                     }
                 }
 
@@ -372,6 +322,52 @@ fun StudentDashboard(
 }
 
 @Composable
+private fun DashboardSectionCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    hasContent: Boolean,
+    subtitle: String? = null,
+    emptyMessage: String,
+    content: @Composable () -> Unit
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (hasContent) {
+                    content()
+                } else {
+                    Text(
+                        text = emptyMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun EventCarousel(
     events: List<Event>,
     onClick: () -> Unit
@@ -383,9 +379,9 @@ private fun EventCarousel(
         items(events, key = { it.id }) { event ->
             ElevatedCard(
                 modifier = Modifier
-                    .width(260.dp)
+                    .width(180.dp)
                     .clickable(onClick = onClick),
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column {
                     if (event.imageUrl.isNotBlank()) {
@@ -395,34 +391,35 @@ private fun EventCarousel(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(150.dp)
+                                .height(120.dp)
                         )
                     } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(150.dp)
+                                .height(120.dp)
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Event,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
 
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
                         Text(
                             text = event.title.ifBlank { "Untitled Event" },
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "${event.date} - ${event.venue}",
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -446,9 +443,9 @@ private fun ClubCarousel(
         items(clubs, key = { it.id }) { club ->
             ElevatedCard(
                 modifier = Modifier
-                    .width(260.dp)
+                    .width(180.dp)
                     .clickable(onClick = onClick),
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column {
                     if (club.imageUrl.isNotBlank()) {
@@ -458,34 +455,35 @@ private fun ClubCarousel(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(150.dp)
+                                .height(120.dp)
                         )
                     } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(150.dp)
+                                .height(120.dp)
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Groups,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
 
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
                         Text(
                             text = club.name.ifBlank { "Unnamed Club" },
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = club.description,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
@@ -493,6 +491,36 @@ private fun ClubCarousel(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SummaryStatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -512,10 +540,17 @@ private fun eventDateMillis(event: Event): Long {
 
     val formats = listOf(
         "MMM d, h:mm a",
+        "MMMM d, h:mm a",
         "MMM d, yyyy h:mm a",
+        "MMMM d, yyyy h:mm a",
         "MMM d, yyyy, h:mm a",
+        "MMMM d, yyyy, h:mm a",
         "MMM d h:mm a",
+        "MMMM d h:mm a",
+        "MMM d, yyyy",
+        "MMMM d, yyyy",
         "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd'T'HH:mm",
         "yyyy-MM-dd"
     )
 
@@ -532,6 +567,17 @@ private fun eventDateMillis(event: Event): Long {
 }
 
 private fun adjustYearIfMissing(date: Date, pattern: String): Long {
-    if (!pattern.contains("yyyy")) return date.time
+    if (!pattern.contains("yyyy")) {
+        val now = Calendar.getInstance()
+        val parsed = Calendar.getInstance().apply { time = date }
+        parsed.set(Calendar.YEAR, now.get(Calendar.YEAR))
+
+        // If the parsed month/day has already passed this year, treat it as the next occurrence.
+        if (parsed.timeInMillis < now.timeInMillis) {
+            parsed.add(Calendar.YEAR, 1)
+        }
+
+        return parsed.timeInMillis
+    }
     return date.time
 }

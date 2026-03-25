@@ -459,40 +459,58 @@ class ClubViewModel : ViewModel() {
 
         _ui.value = ClubUiState(loading = true)
 
+        fun commitJoin(name: String, email: String, profileImageUrl: String) {
+            val member = hashMapOf(
+                "uid" to uid,
+                "name" to name,
+                "email" to email,
+                "profileImageUrl" to profileImageUrl,
+                "joinedAt" to Timestamp.now()
+            )
+
+            val memberRef = db.collection("clubs")
+                .document(clubId)
+                .collection("members")
+                .document(uid)
+
+            val userClubRef = db.collection("users")
+                .document(uid)
+                .collection("clubs")
+                .document(clubId)
+
+            val batch = db.batch()
+            batch.set(memberRef, member)
+            batch.set(userClubRef, mapOf("joinedAt" to Timestamp.now()))
+
+            batch.commit()
+                .addOnSuccessListener {
+                    _myClubIds.value = _myClubIds.value + clubId
+                    _ui.value = ClubUiState(loading = false)
+                }
+                .addOnFailureListener { e ->
+                    val message = if (isPermissionDenied(e)) {
+                        "Joining club blocked by Firestore rules. Allow writes to clubs/{clubId}/members/{uid} and users/{uid}/clubs/{clubId}."
+                    } else {
+                        e.message ?: "Failed to join club."
+                    }
+                    _ui.value = ClubUiState(loading = false, error = message)
+                }
+        }
+
         db.collection("users").document(uid).get()
             .addOnSuccessListener { doc ->
-                val name = doc.getString("name") ?: ""
-                val email = doc.getString("email") ?: ""
-                val profileImageUrl = doc.getString("profileImageUrl") ?: ""
-                val member = hashMapOf(
-                    "uid" to uid,
-                    "name" to name,
-                    "email" to email,
-                    "profileImageUrl" to profileImageUrl,
-                    "joinedAt" to Timestamp.now()
+                commitJoin(
+                    name = doc.getString("name") ?: "",
+                    email = doc.getString("email") ?: auth.currentUser?.email.orEmpty(),
+                    profileImageUrl = doc.getString("profileImageUrl") ?: ""
                 )
-
-                val memberRef = db.collection("clubs")
-                    .document(clubId)
-                    .collection("members")
-                    .document(uid)
-
-                val userClubRef = db.collection("users")
-                    .document(uid)
-                    .collection("clubs")
-                    .document(clubId)
-
-                memberRef.set(member)
-                    .continueWithTask { userClubRef.set(mapOf("joinedAt" to Timestamp.now())) }
-                    .addOnSuccessListener {
-                        _ui.value = ClubUiState(loading = false)
-                    }
-                    .addOnFailureListener { e ->
-                        _ui.value = ClubUiState(loading = false, error = e.message)
-                    }
             }
-            .addOnFailureListener { e ->
-                _ui.value = ClubUiState(loading = false, error = e.message)
+            .addOnFailureListener {
+                commitJoin(
+                    name = "",
+                    email = auth.currentUser?.email.orEmpty(),
+                    profileImageUrl = ""
+                )
             }
     }
 
@@ -514,13 +532,22 @@ class ClubViewModel : ViewModel() {
             .collection("clubs")
             .document(clubId)
 
-        memberRef.delete()
-            .continueWithTask { userClubRef.delete() }
+        val batch = db.batch()
+        batch.delete(memberRef)
+        batch.delete(userClubRef)
+
+        batch.commit()
             .addOnSuccessListener {
+                _myClubIds.value = _myClubIds.value - clubId
                 _ui.value = ClubUiState(loading = false)
             }
             .addOnFailureListener { e ->
-                _ui.value = ClubUiState(loading = false, error = e.message)
+                val message = if (isPermissionDenied(e)) {
+                    "Leaving club blocked by Firestore rules."
+                } else {
+                    e.message ?: "Failed to leave club."
+                }
+                _ui.value = ClubUiState(loading = false, error = message)
             }
     }
 

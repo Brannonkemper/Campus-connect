@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -42,7 +43,7 @@ fun AdminClubsScreen(
     var editingId by remember { mutableStateOf<String?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
     var uploading by remember { mutableStateOf(false) }
-    var expandedMembersForId by remember { mutableStateOf<String?>(null) }
+    var membersDialogClub by remember { mutableStateOf<Club?>(null) }
     var deleteTarget by remember { mutableStateOf<Club?>(null) }
 
     val ui by vm.ui.collectAsState()
@@ -332,11 +333,8 @@ fun AdminClubsScreen(
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             OutlinedButton(
                                                 onClick = {
-                                                    expandedMembersForId =
-                                                        if (expandedMembersForId == club.id) null else club.id
-                                                    if (expandedMembersForId == club.id) {
-                                                        vm.listenMembers(club.id)
-                                                    }
+                                                    membersDialogClub = club
+                                                    vm.listenMembers(club.id)
                                                 }
                                             ) {
                                                 Icon(
@@ -359,25 +357,6 @@ fun AdminClubsScreen(
                                                 )
                                                 Spacer(Modifier.width(6.dp))
                                                 Text("Announcements")
-                                            }
-                                        }
-                                    }
-
-                                    if (expandedMembersForId == club.id) {
-                                        if (members.isEmpty()) {
-                                            Text(
-                                                "No members yet.",
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        } else {
-                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                members.forEach { member ->
-                                                    Text(
-                                                        "${member.name} - ${member.email}",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
                                             }
                                         }
                                     }
@@ -414,8 +393,57 @@ fun AdminClubsScreen(
             }
         )
     }
-}
 
+    membersDialogClub?.let { club ->
+        AlertDialog(
+            onDismissRequest = { membersDialogClub = null },
+            title = { Text("${club.name} Members") },
+            text = {
+                if (members.isEmpty()) {
+                    Text(
+                        "No members yet.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        members.forEach { member ->
+                            ElevatedCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = member.name.ifBlank { "Unnamed Member" },
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = member.email,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { membersDialogClub = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+}
 
 
 

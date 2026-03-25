@@ -177,7 +177,13 @@ fun LoginScreen(
                                 .requestEmail()
                                 .build()
                             val client = GoogleSignIn.getClient(context, options)
-                            googleLauncher.launch(client.signInIntent)
+                            client.signOut()
+                                .addOnCompleteListener {
+                                    googleLauncher.launch(client.signInIntent)
+                                }
+                                .addOnFailureListener {
+                                    vm.setError("Unable to open Google account chooser.")
+                                }
                         },
                         enabled = !state.loading,
                         modifier = Modifier.fillMaxWidth()

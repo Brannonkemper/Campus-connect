@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -86,12 +85,6 @@ fun AdminDashboard(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     DashboardCard(
-                        title = "Manage Students",
-                        description = "View and manage student accounts",
-                        icon = Icons.Default.ManageAccounts
-                    )
-
-                    DashboardCard(
                         title = "Post Announcements",
                         description = "Create and publish campus-wide announcements",
                         icon = Icons.Default.Campaign,
@@ -135,7 +128,6 @@ fun AdminDashboard(
         }
     }
 }
-
 
 
 
