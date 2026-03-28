@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && userDoc(request.auth.uid).data.role == "admin";
+    }
+
+    function isClubMember(clubId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid));
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid);
+      allow update: if isSelf(uid) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /clubs/{clubId} {
+        allow read: if isSelf(uid) || isAdmin();
+        allow create, update, delete: if isSelf(uid) || isAdmin();
+      }
+
+      match /event_registrations/{eventId} {
+        allow read: if isSelf(uid) || isAdmin();
+        allow create, update, delete: if isSelf(uid) || isAdmin();
+      }
+
+      match /ai_chats/{messageId} {
+        allow read, create, update, delete: if isSelf(uid) || isAdmin();
+      }
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /clubs/{clubId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+
+      match /members/{memberUid} {
+        allow read: if isAdmin() || isSelf(memberUid);
+        allow create, update, delete: if isSelf(memberUid) || isAdmin();
+      }
+
+      match /announcements/{announcementId} {
+        allow read: if isAdmin() || isClubMember(clubId);
+        allow create, update, delete: if isAdmin();
+      }
+    }
+  }
+}

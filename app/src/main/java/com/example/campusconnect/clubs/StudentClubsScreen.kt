@@ -36,6 +36,7 @@ fun StudentClubsScreen(
     val clubs by vm.clubs.collectAsState()
     val myClubIds by vm.myClubIds.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    var pendingClubLeave by remember { mutableStateOf<Club?>(null) }
 
     LaunchedEffect(Unit) {
         vm.clearError()
@@ -177,7 +178,10 @@ fun StudentClubsScreen(
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         if (isMember) {
-                                            OutlinedButton(onClick = { vm.leaveClub(club.id) }) {
+                                            OutlinedButton(
+                                                onClick = { pendingClubLeave = club },
+                                                enabled = !ui.loading
+                                            ) {
                                                 Icon(
                                                     imageVector = Icons.Default.PersonRemove,
                                                     contentDescription = null
@@ -215,7 +219,31 @@ fun StudentClubsScreen(
                 }
             }
         }
+
+        pendingClubLeave?.let { club ->
+            AlertDialog(
+                onDismissRequest = { pendingClubLeave = null },
+                title = { Text("Leave club?") },
+                text = {
+                    Text("Are you sure you want to leave ${club.name}?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            vm.leaveClub(club.id)
+                            pendingClubLeave = null
+                        }
+                    ) {
+                        Text("Yes, leave")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingClubLeave = null }) {
+                        Text("Stay in club")
+                    }
+                }
+            )
+        }
     }
 }
-
 

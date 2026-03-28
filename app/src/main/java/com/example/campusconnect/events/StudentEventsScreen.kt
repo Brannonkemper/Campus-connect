@@ -31,6 +31,7 @@ fun StudentEventsScreen(
     val events by vm.events.collectAsState()
     val registeredEventIds by vm.registeredEventIds.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    var pendingCancellation by remember { mutableStateOf<Event?>(null) }
 
     LaunchedEffect(Unit) {
         vm.clearError()
@@ -197,7 +198,7 @@ fun StudentEventsScreen(
                                             Text("Registered")
                                         }
                                         OutlinedButton(
-                                            onClick = { vm.cancelEventRegistration(event.id) },
+                                            onClick = { pendingCancellation = event },
                                             enabled = !ui.loading,
                                             modifier = Modifier.weight(1f)
                                         ) {
@@ -224,8 +225,32 @@ fun StudentEventsScreen(
                 }
             }
         }
+
+        pendingCancellation?.let { event ->
+            AlertDialog(
+                onDismissRequest = { pendingCancellation = null },
+                title = { Text("Cancel registration?") },
+                text = {
+                    Text("Are you sure you want to cancel your registration for ${event.title}?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            vm.cancelEventRegistration(event.id)
+                            pendingCancellation = null
+                        }
+                    ) {
+                        Text("Yes, cancel")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingCancellation = null }) {
+                        Text("Keep registration")
+                    }
+                }
+            )
+        }
     }
 }
-
 
 
